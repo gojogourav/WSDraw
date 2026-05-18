@@ -8,43 +8,155 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Chat {
-  id      String @id @default(uuid())
-  message String
-  roomId  String
-  userId  String
-  Room    Room   @relation(fields: [roomId], references: [id])
-  User    User   @relation(fields: [userId], references: [id])
+model User {
+  id          String       @id @default(uuid())
+  email       String       @unique
+  password    String
+  name        String
+  photo       String?
+  chats       Chat[]
+  rooms       Room[]
+  members     RoomMember[]
+  shapes      Shape[]
+  annotations Annotation[]
+  quizAnswers QuizAnswer[]
 }
 
 model Room {
-  id        String       @id @default(uuid())
-  slug      String       @unique
-  createdAt DateTime     @default(now())
-  Chat      Chat[]
-  User      User         @relation(fields: [adminId], references: [id])
-  adminId   String
-  members   RoomMember[]
+  id          String       @id @default(uuid())
+  slug        String       @unique
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  isLocked    Boolean      @default(false)
+  isPublic    Boolean      @default(false)
+  thumbnail   String?
+  expiresAt   DateTime?
+  adminId     String
+  admin       User         @relation(fields: [adminId], references: [id])
+  members     RoomMember[]
+  chats       Chat[]
+  shapes      Shape[]
+  annotations Annotation[]
+  sessions    Session[]
+  quizzes     Quiz[]
 }
 
 model RoomMember {
-  id     String @id @default(uuid())
-  userId String
-  roomId String
-
-  user User @relation(fields: [userId], references: [id])
-  room Room @relation(fields: [roomId], references: [id])
+  id       String   @id @default(uuid())
+  userId   String
+  roomId   String
+  role     Role     @default(STUDENT)
+  canDraw  Boolean  @default(true)
+  joinedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id])
+  room     Room     @relation(fields: [roomId], references: [id])
 
   @@unique([userId, roomId])
 }
 
-model User {
-  id         String       @id @default(uuid())
-  email      String       @unique
-  password   String
-  name       String
-  photo      String?
-  Chat       Chat[]
-  Room       Room[]
-  RoomMember RoomMember[]
+model Shape {
+  id         String    @id @default(uuid())
+  roomId     String
+  userId     String
+  type       ShapeType
+  x1         Float
+  y1         Float
+  x2         Float
+  y2         Float
+  radius     Float?
+  points     Json? //this is collection of small poijts for freehand drawing
+  color      String    @default("#000000")
+  width      Float     @default(2)
+  text       String?
+  fontFamily String?
+  imageUrl   String?
+  layer      Layer     @default(STUDENT)
+  sequence   Int
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  room       Room      @relation(fields: [roomId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
+}
+
+model Annotation {
+  id        String   @id @default(uuid())
+  roomId    String
+  userId    String
+  shapeId   String?
+  data      Json
+  createdAt DateTime @default(now())
+  room      Room     @relation(fields: [roomId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Session {
+  id        String         @id @default(uuid())
+  roomId    String
+  startedAt DateTime       @default(now())
+  endedAt   DateTime?
+  room      Room           @relation(fields: [roomId], references: [id])
+  events    SessionEvent[]
+}
+
+model SessionEvent {
+  id        String   @id @default(uuid())
+  sessionId String
+  userId    String
+  type      String
+  payload   Json
+  timestamp DateTime @default(now())
+  session   Session  @relation(fields: [sessionId], references: [id])
+}
+
+model Quiz {
+  id        String       @id @default(uuid())
+  roomId    String
+  question  String?
+  imageUrl  String?
+  isOpen    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  room      Room         @relation(fields: [roomId], references: [id])
+  answers   QuizAnswer[]
+}
+
+model QuizAnswer {
+  id        String   @id @default(uuid())
+  quizId    String
+  userId    String
+  imageUrl  String?
+  text      String?
+  createdAt DateTime @default(now())
+  quiz      Quiz     @relation(fields: [quizId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Chat {
+  id        String   @id @default(uuid())
+  message   String
+  roomId    String
+  userId    String
+  createdAt DateTime @default(now())
+  room      Room     @relation(fields: [roomId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+  GUEST
+}
+
+enum ShapeType {
+  RECTANGLE
+  CIRCLE
+  LINE
+  FREEHAND
+  TEXT
+  IMAGE
+  ARROW
+}
+
+enum Layer {
+  STUDENT
+  TEACHER
 }
