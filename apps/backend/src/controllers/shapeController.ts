@@ -3,6 +3,7 @@ import { AuthRequest } from "../middleware/authMiddleware";
 import { getUserId, slugSchema } from "./roomController";
 import { Response } from "express";
 import { prisma } from "../prisma";
+import { Prisma } from "../../generated/prisma";
 
 // const getSlugId = (req: AuthRequest): string | null => {};
 
@@ -180,7 +181,7 @@ export const updateShape = async (req: AuthRequest, res: Response) => {
 
     const updatedShape = await prisma.shape.update({
       where: { id: shapeId },
-      data: validation.data,
+      data: validation.data as Prisma.ShapeUpdateInput,
     });
 
     return res.status(200).json({

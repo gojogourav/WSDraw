@@ -224,3 +224,16 @@ export const leaveRoom = async (req: Request, res: Response) => {
     return;
   }
 };
+
+export const RoomMembers = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  const { slug } = req.params;
+  const userId = getUserId(req);
+
+  if (!userId) {
+    res.status(401).json({ message: "User not authenticated" });
+    return;
+  }
+};
