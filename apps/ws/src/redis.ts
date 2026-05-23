@@ -35,7 +35,32 @@ export const deleteShapeFromRedis = async (
   await redis.hdel(`room:${roomId}:shapes`, shapeId);
 };
 
-// add clearTeacherAnnotations
+// clearTeacherAnnotations
+export const clearTeacherAnnotations = async (
+  roomId: string,
+): Promise<void> => {
+  const shapes = await redis.hgetall(`room:${roomId}:shapes`);
+  if (!shapes) return;
+
+  const pipeline = redis.pipeline();
+
+  Object.entries(shapes).forEach(([shapeId, shapeData]) => {
+    try {
+      const shape = JSON.parse(shapeData);
+      if (shape.layer === "TEACHER") {
+        pipeline.hdel(`room:${roomId}:shapes`, shapeId);
+      }
+    } catch (error) {
+      console.error(
+        `Failed to parse shape ${shapeId} during teacher cleanup:`,
+        error,
+      );
+    }
+  });
+  if (pipeline.length > 0) {
+    await pipeline.exec();
+  }
+};
 
 export const addUserToRoom = async (
   roomId: string,
@@ -81,6 +106,30 @@ export const publishToRoom = async (
 //
 //
 //
+
+export const subscribeToRoom = async (
+  roomId: string,
+  callback: (message: object) => void,
+): Promise<void> => {
+  const channel = `channel:room:${roomId}`;
+
+  await subscriber.subscribe(channel);
+
+  const roomCallbacks = new Map<string, (message: object) => void>();
+
+  subscriber.on("message", (ch, messageStr) => {
+    if (ch === channel) {
+      try {
+        const callback = roomCallbacks.get(ch);
+        if (callback) {
+          callback(JSON.parse(messageStr));
+        }
+      } catch (err) {
+        console.error(`Failed to parse incoming message on ${channel}:`, err);
+      }
+    }
+  });
+};
 
 export const unsubscribeFromRoom = async (roomId: string): Promise<void> => {
   await subscriber.unsubscribe(`channel:room:${roomId}`);

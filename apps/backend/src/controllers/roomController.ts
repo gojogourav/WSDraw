@@ -236,4 +236,7 @@ export const RoomMembers = async (
     res.status(401).json({ message: "User not authenticated" });
     return;
   }
+
+  try {
+  } catch (error) {}
 };

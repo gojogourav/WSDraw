@@ -1,3 +1,5 @@
+import { WebSocket } from "ws";
+
 export type ShapeType =
   | "rectangle"
   | "circle"
@@ -21,19 +23,16 @@ export interface ShapePayload {
   y2?: number;
   radius?: number;
   color: string;
-
   width: number;
   layer: Layer;
   text?: string;
   fontFamily?: string;
   imageUrl?: string;
-
   points?: {
     x: number;
     y: number;
-    //it will bcome json object of x and y cordinates
   }[];
-  sequence: number; // order of drawing
+  sequence: number;
   timestamp: number;
 }
 
@@ -53,29 +52,32 @@ export interface DrawMessage {
   payload: ShapePayload;
 }
 
-//freehand drawing - batch of freehand points
+// Streaming freehand points
 export interface DrawPartialMessage {
   type: "draw_partial";
   roomId: string;
   userId: string;
   name: string;
   payload: {
-    strokeId: string; // unique ID for this stroke session
-    points: { x: number; y: number }[];
+    strokeId: string;
+    points: { X: number; Y: number }[];
     color: string;
     width: number;
     layer: Layer;
   };
 }
 
-export interface DrawCompleteMessage {
+// final completed free hand points
+//
+
+export interface DrawingCompleteMessage {
   type: "draw_complete";
   roomId: string;
   userId: string;
   name: string;
   payload: {
     strokeId: string;
-    points: { x: number; y: number }[];
+    points: { X: number; Y: number }[];
     color: string;
     width: number;
     layer: Layer;
@@ -98,7 +100,7 @@ export interface UndoMessage {
   type: "undo";
   roomId: string;
   userId: string;
-  shapeId: string; //delete a specific shape
+  shapeId: string; // shape to soft delete
 }
 
 export interface RedoMessage {
@@ -120,7 +122,7 @@ export interface ChatMessage {
 }
 
 export interface LockRoomMessage {
-  type: "lock_room"; // only teacher can draw
+  type: "lock_room"; // teacher mutes all drawing
   roomId: string;
   userId: string;
   isLocked: boolean;
@@ -145,6 +147,7 @@ export interface SpotlightMessage {
     active: boolean;
   };
 }
+
 export interface ClearAnnotationsMessage {
   type: "clear_annotations"; // teacher clears their layer
   roomId: string;
@@ -155,7 +158,7 @@ export type ClientToServerMessage =
   | JoinMessage
   | DrawMessage
   | DrawPartialMessage
-  | DrawCompleteMessage
+  | DrawingCompleteMessage
   | CursorMessage
   | UndoMessage
   | RedoMessage

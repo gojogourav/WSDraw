@@ -98,6 +98,12 @@ export interface BroadcastParams {
   exclude?: WebSocket;
 }
 
+export interface BroadcastParams {
+  roomId: string;
+  message: ServerToClientMessage;
+  exclude?: WebSocket;
+}
+
 export interface ConnectedUser {
   ws: WebSocket;
   userId: string;
