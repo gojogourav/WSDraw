@@ -94,6 +94,7 @@ export interface CursorMessage {
     x: number;
     y: number;
   };
+  strokeId: "abc-123"; // same ID as the partials
 }
 
 export interface UndoMessage {

@@ -28,6 +28,10 @@ export const getShapesFromRedis = async (roomId: string): Promise<object[]> => {
   return Object.values(shapes).map((s) => JSON.parse(s));
 };
 
+export const getNextSequence = async (roomId: string): Promise<void> => {
+  await redis.incr(`room:${roomId}:sequence`);
+};
+
 export const deleteShapeFromRedis = async (
   roomId: string,
   shapeId: string,
