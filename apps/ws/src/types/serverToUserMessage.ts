@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import {
   ChatMessage,
   CursorMessage,
+  DrawingCompleteMessage,
   DrawMessage,
   DrawPartialMessage,
   Role,
@@ -89,15 +90,10 @@ export type ServerToClientMessage =
   | DrawPermissionMessage
   | UndoConfirmedMessage
   | RedoConfirmedMessage
+  | DrawingCompleteMessage
   | ChatMessage
   | SpotlightMessage
   | ErrorMessage;
-
-export interface BroadcastParams {
-  roomId: string;
-  message: ServerToClientMessage;
-  exclude?: WebSocket;
-}
 
 export interface BroadcastParams {
   roomId: string;
@@ -111,4 +107,5 @@ export interface ConnectedUser {
   name: string;
   role: Role;
   roomId: string;
+  canDraw: boolean;
 }

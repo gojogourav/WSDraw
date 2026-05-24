@@ -58,32 +58,11 @@ export interface DrawPartialMessage {
   roomId: string;
   userId: string;
   name: string;
-  payload: {
-    strokeId: string;
-    points: { X: number; Y: number }[];
-    color: string;
-    width: number;
-    layer: Layer;
-  };
+  payload: ShapePayload;
 }
 
 // final completed free hand points
 //
-
-export interface DrawingCompleteMessage {
-  type: "draw_complete";
-  roomId: string;
-  userId: string;
-  name: string;
-  payload: {
-    strokeId: string;
-    points: { X: number; Y: number }[];
-    color: string;
-    width: number;
-    layer: Layer;
-    sequence: number;
-  };
-}
 
 export interface CursorMessage {
   type: "cursor";
@@ -94,7 +73,15 @@ export interface CursorMessage {
     x: number;
     y: number;
   };
-  strokeId: "abc-123"; // same ID as the partials
+  strokeId: string;
+}
+
+export interface CanvasStateMessage {
+  type: "canvas_state";
+  roomId: string;
+  payload: {
+    shapes: ShapePayload[];
+  };
 }
 
 export interface UndoMessage {
@@ -154,12 +141,19 @@ export interface ClearAnnotationsMessage {
   roomId: string;
   userId: string;
 }
+export interface DrawingCompleteMessage {
+  type: "draw_complete";
+  roomId: string;
+  userId: string;
+  name: string;
+  payload: ShapePayload;
+}
 
 export type ClientToServerMessage =
   | JoinMessage
   | DrawMessage
-  | DrawPartialMessage
   | DrawingCompleteMessage
+  | DrawPartialMessage
   | CursorMessage
   | UndoMessage
   | RedoMessage

@@ -19,19 +19,15 @@ import {
   subscriber,
 } from "./redis";
 import { IncomingMessage } from "http";
-import { stringify } from "querystring";
 import jwt from "jsonwebtoken";
-import { channel } from "process";
 import { uuid } from "uuidv4";
 import {
   ClientToServerMessage,
+  DrawingCompleteMessage,
   Role,
   ShapePayload,
 } from "./types/userToServerMessage";
 import { prisma } from "./prisma";
-import { error, log } from "console";
-import { ShapeType } from "../generated/prisma/enums";
-import { ADDRGETNETWORKPARAMS } from "dns/promises";
 
 const wss = new WebSocketServer({ port: 6372 });
 const rooms = new Map<string, Set<ConnectedUser>>();
@@ -139,12 +135,27 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
             return;
           }
 
+          const member = await prisma.roomMember.findUnique({
+            where: { userId_roomId: { userId, roomId } },
+          });
+
+          const actualRole =
+            room.adminId === userId
+              ? "TEACHER"
+              : isGuest
+                ? "GUEST"
+                : (member?.role ?? role);
+
+          const canDraw = member?.canDraw ?? true;
+
+          // const canDraw = await
           const connectedUser: ConnectedUser = {
             ws,
             userId,
             name,
-            role: isGuest ? "GUEST" : role,
+            role: actualRole,
             roomId,
+            canDraw,
           };
 
           if (!rooms.has(roomId)) {
@@ -155,6 +166,17 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
 
           rooms.get(roomId)?.add(connectedUser);
           const user = wsToUser.get(ws);
+
+          if (user) {
+            sendToClient(ws, {
+              type: "error",
+              message: "User already joined",
+              code: "",
+            });
+            return;
+          }
+
+          wsToUser.set(ws, connectedUser);
 
           await addUserToRoom(roomId, userId, { userId, name, role });
 
@@ -215,11 +237,7 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
             return;
           }
 
-          const member = await prisma.roomMember.findUnique({
-            where: { userId_roomId: { userId, roomId } },
-          });
-
-          if (member && !member.canDraw && user?.role !== "TEACHER") {
+          if (!user?.canDraw && user?.role !== "TEACHER") {
             sendToClient(ws, {
               type: "error",
               message: "You don't have draw permission",
@@ -262,17 +280,17 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
                 type: payload.shapeType.toUpperCase() as any,
                 x1: payload.x1,
                 y1: payload.y1,
-                x2: payload.x2 ||0,
-                y2: payload.y2 ||0 ,
-                radius: payload.radius,
+                x2: payload.x2 ?? 0,
+                y2: payload.y2 ?? 0,
+                radius: payload.radius ?? null,
                 color: payload.color,
                 width: payload.width,
-                layer: payload.layer,
-                text: payload.text,
-                fontFamily: payload.fontFamily,
-                imageUrl: payload.imageUrl,
-                points: payload.points as any,
-                sequence: payload.sequence,
+                layer: payload.layer as any,
+                text: payload.text ?? null,
+                fontFamily: payload.fontFamily ?? null,
+                imageUrl: payload.imageUrl ?? null,
+                points: payload.points ?? [],
+                sequence,
               },
             })
             .catch(console.error);
@@ -292,18 +310,19 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
         }
 
         case "draw_complete": {
-          const { roomId, payload } = message;
+          const { roomId, name, payload } = message;
 
           const sequence = await getNextSequence(roomId);
-          const shapeId = payload.strokeId;
+          const shapeId = payload.shapeId;
 
           const shapeData = {
+            ...payload,
             shapeId,
             points: payload.points,
             color: payload.color,
             width: payload.width,
             layer: payload.layer,
-            sequence: payload.sequence,
+            sequence: sequence,
             userId,
           };
 
@@ -316,31 +335,54 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
                 roomId,
                 userId,
                 type: "FREEHAND",
-                x1: 0,
-                y1: 0,
+                x1: payload.x1,
+                y1: payload.y1,
+                x2: payload.x2 ?? 0,
+                y2: payload.y2 ?? 0,
+                radius: payload.radius ?? null,
                 color: payload.color,
                 width: payload.width,
-                layer: payload.layer,
-                points: payload.points,
-                sequence: payload.sequence,
+                layer: payload.layer as any,
+                text: payload.text ?? null,
+                fontFamily: payload.fontFamily ?? null,
+                imageUrl: payload.imageUrl ?? null,
+                points: payload.points ?? [],
+                sequence,
               },
             })
             .catch(console.error);
+
+          broadcast({
+            roomId,
+            message: {
+              type: "draw_complete",
+              roomId,
+              userId,
+              name,
+              payload: shapeData,
+            } as DrawingCompleteMessage,
+            exclude: ws,
+          });
 
           break;
         }
 
         case "cursor": {
-          const { roomId, name, payload } = message;
+          const { roomId, name, payload, strokeId } = message;
 
           broadcast({
             roomId,
+
             message: {
               type: "cursor",
+              strokeId,
               roomId,
               userId,
               name,
-              payload,
+              payload: {
+                x: payload.x,
+                y: payload.y,
+              },
             },
             exclude: ws,
           });
@@ -433,7 +475,7 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
 
           const user = wsToUser.get(ws);
 
-          if (user?.role === "TEACHER") {
+          if (user?.role !== "TEACHER") {
             sendToClient(ws, {
               type: "error",
               message: "Only teacher can lock the room",
@@ -496,19 +538,16 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
 
         case "spotlight": {
           const { roomId, payload } = message;
-          const user = wsToUser.get(ws)
-
+          const user = wsToUser.get(ws);
 
           if (user?.role !== "TEACHER") {
             sendToClient(ws, {
               type: "error",
-              message: "Only teachers can use spotlight";
+              message: "Only teachers can use spotlight",
               code: "UNAUTHORIZED",
             });
             return;
           }
-
-
 
           broadcast({
             roomId,
@@ -517,14 +556,11 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
               roomId,
               userId,
               payload,
-
             },
-            exclude: ws
+            exclude: ws,
           });
           break;
-
         }
-
 
         case "clear_annotations": {
           const { roomId } = message;
@@ -534,49 +570,36 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
             sendToClient(ws, {
               type: "error",
               message: "Only teaches can clear annotations",
-              code: "UNAUTHORIZED"
-            })
+              code: "UNAUTHORIZED",
+            });
 
             return;
-
           }
 
-
-
           await clearTeacherAnnotations(roomId);
-
-
 
           await prisma.shape.updateMany({
             where: { roomId, layer: "TEACHER" },
             data: {
               deletedAt: new Date(),
-
-            }
-          })
-
+            },
+          });
 
           broadcast({
             roomId,
             message: {
               type: "error",
               message: "Teacher annotations cleared",
-              code:"ANNOTATIONS_CLEAERED"
-            }
-          })
+              code: "ANNOTATIONS_CLEAERED",
+            },
+          });
           break;
-
-
-
-
-
         }
 
         default: {
-          console.log("UNDEFINED MESSAGE TYPE")
+          console.log("UNDEFINED MESSAGE TYPE");
           break;
         }
-
       }
     } catch (err) {
       console.error(`Failed to join user - ${err}`);
@@ -584,29 +607,25 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
       sendToClient(ws, {
         type: "error",
         message: "Failed to proceess",
-        code: "INTERNAL_SERVER_ERR"
+        code: "INTERNAL_SERVER_ERR",
       });
     }
   });
 
-
-
   ws.on("close", async () => {
-    const user = wsToUser.get((ws));
+    const user = wsToUser.get(ws);
 
     if (!user) return;
 
     const { roomId, userId, name } = user;
 
     rooms.get(roomId)?.delete(user);
-    wsToUser.delete((ws))
-
+    wsToUser.delete(ws);
 
     if (rooms.get(roomId)?.size === 0) {
-      rooms.delete((roomId))
-      await subscriber.unsubscribe(`channel:room:${roomId}`)
+      rooms.delete(roomId);
+      await subscriber.unsubscribe(`channel:room:${roomId}`);
     }
-
 
     await removeUserFromRoom(roomId, userId);
 
@@ -622,18 +641,14 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
         payload: {
           message: `${name} left the room`,
           activeUsers,
-        }
-      }
+        },
+      },
     });
 
+    console.log(`Client ${name} disconnected from room`);
+  });
 
-
-    console.log(`Client ${name} disconnected from room`)
-
-    ws.on("error", (err) => {
-      console.error("Websocket error : ",err)
-    })
-
-  })
-
+  ws.on("error", (err) => {
+    console.error("Websocket error : ", err);
+  });
 });
