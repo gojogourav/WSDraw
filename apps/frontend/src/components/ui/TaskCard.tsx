@@ -41,13 +41,10 @@ export default function TaskCard() {
       transition={{ duration: 0.5, ease: "easeOut" }}
       className="relative w-80 drop-shadow-[0_15px_35px_rgba(0,0,0,0.05)]"
     >
-      {/* Folder Tab Area */}
       <div className="absolute -top-10 left-0 h-12 w-36 bg-[#F4F5F7] rounded-t-2xl z-0" />
 
-      {/* Tab curve smoothing (optional detail for seamless connection) */}
       <div className="absolute -top-4 left-[8.5rem] w-4 h-4 bg-transparent rounded-bl-xl shadow-[-5px_5px_0_0_#F4F5F7] z-10" />
 
-      {/* Main Card Body */}
       <div className="relative z-10 bg-[#F4F5F7] rounded-2xl rounded-tl-none p-5 pb-6">
         <h3 className="text-lg font-semibold text-neutral-800 mb-4 tracking-tight">
           Today's tasks
