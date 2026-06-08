@@ -3,6 +3,7 @@ import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { log } from "console";
 
 export default function Hero() {
   return (
@@ -256,16 +257,31 @@ function ActionCard() {
     if (isJoining) {
       router.push(`/room/${roomId.trim()}?name=${encodeURIComponent(name)}`);
     } else {
-      const res = await fetch("http://localhost:3001/room", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: uuidv4() }),
-      });
-      const data = await res.json();
-      router.push(`/room/${data.room.id}?name=${encodeURIComponent(name)}`);
+      try {
+        const slug = uuidv4();
+        const res = await fetch("http://localhost:3001/room", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug }),
+        });
+
+        console.log("Status:", res.status);
+        const data = await res.json();
+        console.log("Response:", data);
+
+        if (!res.ok || !data.room) {
+          router.push(`/room/${slug}?name=${encodeURIComponent(name)}`);
+          return;
+        }
+
+        router.push(`/room/${data.room.id}?name=${encodeURIComponent(name)}`);
+      } catch (err) {
+        console.error("Failed to create room:", err);
+        const slug = uuidv4();
+        router.push(`/room/${slug}?name=${encodeURIComponent(name)}`);
+      }
     }
   };
-
   return (
     <div className="w-full max-w-md relative z-20">
       <div className="bg-white/80 backdrop-blur-xl border border-neutral-100 rounded-[2rem] p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] text-left">

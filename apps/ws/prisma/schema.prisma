@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  // output   = "../generated/prisma"
 }
 
 datasource db {
@@ -60,7 +59,7 @@ model Room {
   isLocked   Boolean      @default(false)
   isPublic   Boolean      @default(false)
   thumbnail  String?
-  updatedAt  DateTime
+  updatedAt  DateTime     @default(now())
   Annotation Annotation[]
   Chat       Chat[]
   Quiz       Quiz[]

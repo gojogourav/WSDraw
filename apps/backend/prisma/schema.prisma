@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -14,42 +13,42 @@ model User {
   password    String
   name        String
   photo       String?
+  annotations Annotation[]
   chats       Chat[]
+  quizAnswers QuizAnswer[]
   rooms       Room[]
   members     RoomMember[]
   shapes      Shape[]
-  annotations Annotation[]
-  quizAnswers QuizAnswer[]
 }
 
 model Room {
   id          String       @id @default(uuid())
   slug        String       @unique
   createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  adminId     String
+  expiresAt   DateTime?
   isLocked    Boolean      @default(false)
   isPublic    Boolean      @default(false)
   thumbnail   String?
-  expiresAt   DateTime?
-  adminId     String
+  updatedAt   DateTime     @default(now()) @updatedAt
+  annotations Annotation[]
+  chats       Chat[]
+  quizzes     Quiz[]
   admin       User         @relation(fields: [adminId], references: [id])
   members     RoomMember[]
-  chats       Chat[]
-  shapes      Shape[]
-  annotations Annotation[]
   sessions    Session[]
-  quizzes     Quiz[]
+  shapes      Shape[]
 }
 
 model RoomMember {
   id       String   @id @default(uuid())
   userId   String
   roomId   String
-  role     Role     @default(STUDENT)
   canDraw  Boolean  @default(true)
   joinedAt DateTime @default(now())
-  user     User     @relation(fields: [userId], references: [id])
+  role     Role     @default(STUDENT)
   room     Room     @relation(fields: [roomId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, roomId])
 }
@@ -64,7 +63,7 @@ model Shape {
   x2         Float
   y2         Float
   radius     Float?
-  points     Json? //this is collection of small poijts for freehand drawing
+  points     Json?
   color      String    @default("#000000")
   width      Float     @default(2)
   text       String?

@@ -32,7 +32,7 @@ export function useCanvas() {
     redrawAll(shapes);
   }, [shapes, redrawAll]);
 
-  const drawShape = (ctx: CanvasRenderingContext2D, shape: Shape) => {
+  function drawShape(ctx: CanvasRenderingContext2D, shape: Shape) {
     ctx.strokeStyle = shape.color;
     ctx.lineWidth = shape.width;
     ctx.lineCap = "round";
@@ -92,7 +92,7 @@ export function useCanvas() {
         break;
       }
     }
-  };
+  }
 
   const drawArrowHead = (
     ctx: CanvasRenderingContext2D,

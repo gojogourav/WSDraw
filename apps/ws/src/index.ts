@@ -20,7 +20,7 @@ import {
 } from "./redis";
 import { IncomingMessage } from "http";
 import jwt from "jsonwebtoken";
-import { uuid } from "uuidv4";
+import { v4 as uuidv4 } from "uuid";
 import {
   ClientToServerMessage,
   DrawingCompleteMessage,
@@ -112,7 +112,7 @@ subscriber.on("message", (channel, data) => {
 wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
   const auth = authenticateConnection(req);
 
-  const userId = auth?.userId || `guest_${uuid()}`;
+  const userId = auth?.userId || `guest_${uuidv4()}`;
   const isGuest = !auth?.userId;
 
   console.log(`Client connected: ${userId} ${isGuest ? "(guest)" : ""}`);
@@ -124,16 +124,16 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
         case "join": {
           const { roomId, name, role } = message;
 
-          const room = await prisma.room.findUnique({ where: { id: roomId } });
-
-          if (!room) {
-            sendToClient(ws, {
-              type: "error",
-              message: "Room not found",
-              code: "ROOM_NOT_FOUND",
-            });
-            return;
-          }
+          // Auto-create room if it doesn't exist
+          const room = await prisma.room.upsert({
+            where: { id: roomId },
+            update: {}, // Do nothing if it exists
+            create: {
+              id: roomId,
+              slug: roomId,
+              adminId: userId,
+            },
+          });
 
           const member = await prisma.roomMember.findUnique({
             where: { userId_roomId: { userId, roomId } },
@@ -148,7 +148,6 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
 
           const canDraw = member?.canDraw ?? true;
 
-          // const canDraw = await
           const connectedUser: ConnectedUser = {
             ws,
             userId,
@@ -160,14 +159,13 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
 
           if (!rooms.has(roomId)) {
             rooms.set(roomId, new Set());
-
             await subscriber.subscribe(`channel:room:${roomId}`);
           }
 
           rooms.get(roomId)?.add(connectedUser);
-          const user = wsToUser.get(ws);
 
-          if (user) {
+          const existingUser = wsToUser.get(ws);
+          if (existingUser) {
             sendToClient(ws, {
               type: "error",
               message: "User already joined",
@@ -177,7 +175,6 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
           }
 
           wsToUser.set(ws, connectedUser);
-
           await addUserToRoom(roomId, userId, { userId, name, role });
 
           let shapes = await getShapesFromRedis(roomId);
@@ -186,9 +183,7 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
               where: { roomId },
               orderBy: { sequence: "asc" },
             });
-
             shapes = dbShapes;
-
             for (const shape of dbShapes) {
               await saveShapeToRedis(roomId, shape.id, shape);
             }
@@ -201,7 +196,6 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
           });
 
           const activeUsers = await getActiveUser(roomId);
-
           broadcast({
             roomId,
             message: {
@@ -248,7 +242,7 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
           }
 
           const sequence = await getNextSequence(roomId);
-          const shapeId = payload.shapeId || uuid();
+          const shapeId = payload.shapeId || uuidv4();
 
           const shapeData = {
             ...payload,
@@ -271,7 +265,7 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
             _originServerId: process.env.SERVER_ID,
           });
 
-          prisma.shape
+          await prisma.shape
             .create({
               data: {
                 id: shapeId,
@@ -328,7 +322,7 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
 
           await saveShapeToRedis(roomId, shapeId, shapeData);
 
-          prisma.shape
+          await prisma.shape
             .create({
               data: {
                 id: shapeId,
@@ -442,10 +436,10 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
         case "chat": {
           const { roomId, name, payload } = message;
 
-          prisma.chat
+          await prisma.chat
             .create({
               data: {
-                id: uuid(),
+                id: uuidv4(),
                 message: payload.message,
                 roomId,
                 userId,
