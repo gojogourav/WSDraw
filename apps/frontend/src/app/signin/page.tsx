@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { log } from "node:console";
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(true);
@@ -23,27 +22,24 @@ export default function AuthPage() {
     const payload = isSignUp ? { name, email, password } : { email, password };
 
     try {
-      console.log("starting ");
       const res = await fetch(`http://localhost:3001/auth${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        credentials: "include",
+        credentials: "include", // CRITICAL: This tells the browser to accept the HttpOnly cookie from Express
       });
 
       const data = await res.json();
 
-      console.log(data);
-
       if (!res.ok) {
-        throw new Error(data.message || "Something went wrong");
+        throw new Error(
+          data.message ||
+            "Authentication failed. Please check your credentials.",
+        );
       }
 
-      if (data.token) {
-        document.cookie = `access_token=${data.token}; path=/; max-age=86400; SameSite=Strict`;
-      }
+      window.dispatchEvent(new Event("auth-change"));
 
-      // Redirect to dashboard or home page on success
       router.push("/");
     } catch (err: any) {
       setError(err.message || "Failed to authenticate");
@@ -84,7 +80,6 @@ export default function AuthPage() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md relative z-10"
       >
-        {/* Logo/Brand Indicator */}
         <div className="flex items-center justify-center gap-2 mb-8">
           <div className="flex flex-wrap w-6 h-6 gap-[2px]">
             <div className="w-[10px] h-[10px] bg-[#0066FF] rounded-sm" />
@@ -98,7 +93,6 @@ export default function AuthPage() {
         </div>
 
         <div className="bg-white/80 backdrop-blur-xl border border-neutral-100 rounded-[2rem] p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)]">
-          {/* Custom Styled Dynamic Mode Switcher Toggle */}
           <div className="flex bg-neutral-100 p-1 rounded-2xl mb-8 relative">
             <button
               type="button"
@@ -147,7 +141,6 @@ export default function AuthPage() {
               : "Pick up right where you left off."}
           </p>
 
-          {/* Form Processing Notifications */}
           <AnimatePresence mode="wait">
             {error && (
               <motion.div

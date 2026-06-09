@@ -4,11 +4,12 @@ import cors from "cors";
 
 import authRouter from "./routes/authRouts";
 import roomRouter from "./routes/roomRouts";
-
+import cookieParser from "cookie-parser";
 const PORT = process.env.PORT || 3001;
 
 const app = express();
 dotenv.config();
+app.use(cookieParser());
 // app.use(cors());
 
 app.use(

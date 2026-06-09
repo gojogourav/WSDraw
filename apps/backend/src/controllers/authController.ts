@@ -156,3 +156,17 @@ export const registerUser = async (
     res.status(500).json({ message: "Internal server error", ok: false });
   }
 };
+
+export const getMe = async (req: Request, res: Response): Promise<void> => {
+  const token = req.cookies?.access_token;
+  if (!token) {
+    res.status(401).json({ authenticated: false });
+    return;
+  }
+  try {
+    jwt.verify(token, process.env.JWT_SECRET!);
+    res.status(200).json({ authenticated: true });
+  } catch {
+    res.status(401).json({ authenticated: false });
+  }
+};

@@ -24,13 +24,12 @@ export function useCanvas() {
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     shapesToDraw.forEach((shape) => drawShape(ctx, shape));
   }, []);
 
   useEffect(() => {
     redrawAll(shapes);
-  }, [shapes, redrawAll]);
+  }, [redrawAll, shapes]);
 
   function drawShape(ctx: CanvasRenderingContext2D, shape: Shape) {
     ctx.strokeStyle = shape.color;
@@ -59,6 +58,7 @@ export function useCanvas() {
         ctx.stroke();
         break;
       }
+
       case "line":
       case "arrow": {
         ctx.beginPath();
@@ -83,8 +83,8 @@ export function useCanvas() {
         ctx.moveTo(shape.points[0].x, shape.points[0].y);
         shape.points.forEach((p) => ctx.lineTo(p.x, p.y));
         ctx.stroke();
-        break;
       }
+
       case "text": {
         ctx.fillStyle = shape.color;
         ctx.font = `${shape.width * 8}px sans-serif`;
@@ -171,7 +171,7 @@ export function useCanvas() {
         ctx.stroke();
 
         // Send batch every 10 points
-        if (currentPoints.current.length - lastSentIndex.current >= 10) {
+        if (currentPoints.current.length - lastSentIndex.current >= 2) {
           onPartial?.(
             currentStrokeId.current,
             currentPoints.current.slice(lastSentIndex.current),
