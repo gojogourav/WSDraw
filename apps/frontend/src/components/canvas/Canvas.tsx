@@ -1,14 +1,8 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useCanvas } from "./useCanvas";
 import { useWebSocket } from "./useWebSocket";
 import Toolbar from "./ToolBar";
-import { Shape } from "./types";
-
-interface CanvasProps {
-  roomId: string;
-  name: string;
-}
 
 export default function Canvas({ roomId, name }: CanvasProps) {
   const {
@@ -16,6 +10,7 @@ export default function Canvas({ roomId, name }: CanvasProps) {
     tool,
     setTool,
     color,
+    onWheel,
     setColor,
     strokeWidth,
     setStrokeWidth,
@@ -108,6 +103,7 @@ export default function Canvas({ roomId, name }: CanvasProps) {
         onMouseDown={onMouseDown}
         onMouseMove={(e) => onMouseMove(e, sendDrawPartial, sendCursor)}
         onMouseUp={(e) => onMouseUp(e, sendDraw, sendDrawComplete)}
+        onWheel={onWheel}
         onMouseLeave={(e) => {
           if (tool === "freehand") {
             onMouseUp(e as any, sendDraw, sendDrawComplete);
