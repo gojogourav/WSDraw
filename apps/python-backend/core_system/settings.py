@@ -25,6 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-iup+=kx_f!x!uc49!r(&-ckqz94vto1)8*v)c^&wfgc170+v1x"
 
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -47,12 +48,16 @@ SIMPLE_JWT = {
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "api",
+    "rest_framework",
+    "channels",
 ]
 
 MIDDLEWARE = [
@@ -83,7 +88,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "core_system.wsgi.application"
-
+ASGI_APPLICATION = "core_system.asgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases

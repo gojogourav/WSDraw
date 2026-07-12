@@ -1,5 +1,6 @@
 import urllib.parse
 
+from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from rest_framework_simplejwt.tokens import AccessToken
@@ -17,7 +18,7 @@ def get_user_from_token(token_string):
         return AnonymousUser()
 
 
-class JWTAuthMiddleware:
+class JWTAauthMiddleware:
     def __init__(self, inner):
         self.inner = inner
 
@@ -32,3 +33,5 @@ class JWTAuthMiddleware:
 
         else:
             scope["user"] = AnonymousUser()
+
+        return await self.inner(scope, receive, send)

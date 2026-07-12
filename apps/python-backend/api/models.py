@@ -1,10 +1,7 @@
 import uuid
-from email.policy import default
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-
-# Create your models here.
 
 
 class Role(models.TextChoices):
@@ -29,6 +26,21 @@ class User(AbstractUser):
     name = models.CharField(max_length=255)
     photo = models.URLField(blank=True, null=True)
 
+    groups = models.ManyToManyField(
+        "auth.Group",
+        related_name="api_user_set",
+        blank=True,
+        help_text="The groups this user belongs to.",
+        verbose_name="groups",
+    )
+    user_permissions = models.ManyToManyField(
+        "auth.Permission",
+        related_name="api_user_permissions_set",
+        blank=True,
+        help_text="Specific permissions for this user.",
+        verbose_name="user permissions",
+    )
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["name"]
 
@@ -46,8 +58,9 @@ class Room(models.Model):
     objects = models.Manager()
 
     expiresAt = models.DateTimeField(null=True, blank=True)
-    isLocked = models.BooleanField(bool, False)
-    isPublic = models.BooleanField(bool, False)
+    # 🐛 FIX: Removed "bool" and used "default="
+    isLocked = models.BooleanField(default=False)
+    isPublic = models.BooleanField(default=False)
     thumbnail = models.URLField(null=True, blank=True)
 
 
@@ -57,7 +70,7 @@ class RoomMember(models.Model):
         User, on_delete=models.CASCADE, related_name="room_memberships"
     )
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name="members")
-    canDraw = models.BooleanField(bool, True)
+    canDraw = models.BooleanField(default=True)
     joinedAt = models.DateTimeField(auto_now_add=True)
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.STUDENT)
 
@@ -68,7 +81,7 @@ class RoomMember(models.Model):
 
 
 class Shape(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, ediable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name="shapes")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="shapes")
     type = models.CharField(max_length=20, choices=ShapeType.choices)
@@ -79,7 +92,7 @@ class Shape(models.Model):
 
     objects = models.Manager()
 
-    points = models.JSONField(null=True, black=True)
+    points = models.JSONField(null=True, blank=True)
     color = models.CharField(max_length=7, default="#000000")
     sequence = models.IntegerField()
     createdAt = models.DateTimeField(auto_now_add=True)

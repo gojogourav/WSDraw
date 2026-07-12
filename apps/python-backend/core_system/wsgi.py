@@ -1,16 +1,28 @@
 """
-WSGI config for core_system project.
-
-It exposes the WSGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/6.0/howto/deployment/wsgi/
+ASGI config for core_system project.
 """
 
 import os
 
-from django.core.wsgi import get_wsgi_application
+# 1. CHANGE THIS: Import the ASGI application, not WSGI
+from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core_system.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core_system.settings")
 
-application = get_wsgi_application()
+# 2. CHANGE THIS: Initialize the ASGI app
+django_asgi_app = get_asgi_application()
+
+# 3. Import your Channels tools and custom code
+from api import routing
+from api.middleware import JWTAauthMiddleware
+from channels.routing import ProtocolTypeRouter, URLRouter
+
+application = ProtocolTypeRouter(
+    {
+        # 4. Pass the ASGI app to handle standard HTTP requests
+        "http": django_asgi_app,
+        "websocket": JWTAauthMiddleware(
+            URLRouter(routing.websocket_urlpatterns),
+        ),
+    }
+)
